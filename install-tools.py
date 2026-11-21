@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Install the explicitly requested tools on Windows, Linux, or macOS."""
-import os, platform, shutil, subprocess, sys
+import os, platform, shutil, subprocess, sys, time
 from pathlib import Path
 from urllib.request import urlopen
+from urllib.error import URLError, HTTPError
+
+HEADROOM_HEALTH = "http://127.0.0.1:8787/health"
 
 ROOT = Path(__file__).resolve().parent
 SKILL_URL = "https://raw.githubusercontent.com/decolua/9router/refs/heads/master/skills/9router/SKILL.md"
@@ -66,14 +69,61 @@ def install_python_tools():
     else: print("[warn] agent-reach installed; reopen terminal and run agent-reach setup")
 
 
+def headroom_executable():
+    found = shutil.which("headroom")
+    if found: return found
+    suffix = ".exe" if platform.system() == "Windows" else ""
+    candidate = Path.home() / ".local" / "bin" / f"headroom{suffix}"
+    return str(candidate) if candidate.is_file() else None
+
+
+def headroom_healthy():
+    try:
+        with urlopen(HEADROOM_HEALTH, timeout=3) as response:
+            return response.status == 200
+    except (URLError, HTTPError, OSError):
+        return False
+
+
 def install_headroom():
-    run(["uv", "tool", "install", "--upgrade", "--force", "headroom-ai[proxy]"])
-    exe = shutil.which("headroom")
-    if exe:
-        run([exe, "--version"])
-        print("[ok] headroom proxy ready; start with: headroom proxy --port 8787")
+    run(["uv", "tool", "install", "--upgrade", "--force", "headroom-ai[proxy,code,ml]"])
+    exe = headroom_executable()
+    if not exe:
+        raise RuntimeError("headroom installed but executable not found; reopen terminal and rerun")
+    run([exe, "--version"])
+    if headroom_healthy():
+        print(f"[ok] headroom proxy already healthy: {HEADROOM_HEALTH}")
+        return
+
+    log = Path.home() / ".headroom" / "proxy.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    output = log.open("ab")
+    options = {"stdin": subprocess.DEVNULL, "stdout": output, "stderr": subprocess.STDOUT, "cwd": str(Path.home())}
+    if platform.system() == "Windows":
+        options["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
     else:
-        print("[warn] headroom installed; reopen terminal, then run: headroom proxy --port 8787")
+        options["start_new_session"] = True
+    subprocess.Popen([exe, "proxy", "--port", "8787"], **options)
+    output.close()
+    for _ in range(90):
+        if headroom_healthy():
+            print(f"[ok] headroom proxy running in background: {HEADROOM_HEALTH} (log: {log})")
+            return
+        time.sleep(2)
+    raise RuntimeError(f"headroom proxy did not become healthy in 180s; inspect {log}")
+
+
+def install_9router():
+    npm = shutil.which("npm")
+    if not npm: raise RuntimeError("npm unavailable; install Node.js then rerun")
+    listed = subprocess.run([npm, "list", "-g", "9router", "--depth=0"], capture_output=True, text=True)
+    if listed.returncode == 0 and "9router@" in listed.stdout:
+        print("[ok] 9router already installed globally")
+    else:
+        run([npm, "install", "-g", "9router"])
+    binary = shutil.which("9router")
+    if binary: run([binary, "--version"])
+    else: print("[warn] 9router installed; reopen terminal to refresh PATH")
 
 
 def install_9router_skill():
@@ -88,7 +138,7 @@ def install_9router_skill():
 def main():
     print(f"Platform: {platform.system()} / {platform.machine()}")
     if platform.system() not in {"Windows", "Linux", "Darwin"}: raise RuntimeError("Unsupported operating system")
-    install_rtk(); install_python_tools(); install_headroom(); install_9router_skill()
+    install_rtk(); install_python_tools(); install_headroom(); install_9router(); install_9router_skill()
     print("[ok] All requested install steps completed; restart agent sessions if needed")
 
 
