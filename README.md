@@ -24,6 +24,7 @@ Argumen target opsional diteruskan ke installer, misalnya jalankan dari CMD/Powe
 - `SOUL.md`: policy kanonis yang dibaca agent.
 - `grounded-search.py`: pencarian dan pencatatan Sessions.
 - `Sessions/`, `Skills/`, `knowledge-base.md`: state bersama.
+- `Skills/<name>/`: skill pihak ketiga yang di-vendor; lihat `SOURCE.md` di folder itu untuk URL + commit upstream.
 - `kredensial/`: manifest dan secret store lokal; jangan bagikan atau commit secret.
 - `install-shared-adapters.ps1`: menyiapkan adapter untuk agent terdeteksi (Windows).
 - `install-shared-adapters.sh`: launcher POSIX; menjalankan installer tools.
