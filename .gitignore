@@ -1,0 +1,4 @@
+# Secret store — never commit
+kredensial/
+*.env
+!*.env.example
