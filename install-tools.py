@@ -66,6 +66,16 @@ def install_python_tools():
     else: print("[warn] agent-reach installed; reopen terminal and run agent-reach setup")
 
 
+def install_headroom():
+    run(["uv", "tool", "install", "--upgrade", "--force", "headroom-ai[proxy]"])
+    exe = shutil.which("headroom")
+    if exe:
+        run([exe, "--version"])
+        print("[ok] headroom proxy ready; start with: headroom proxy --port 8787")
+    else:
+        print("[warn] headroom installed; reopen terminal, then run: headroom proxy --port 8787")
+
+
 def install_9router_skill():
     target = ROOT / "Skills" / "9router" / "SKILL.md"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -78,7 +88,7 @@ def install_9router_skill():
 def main():
     print(f"Platform: {platform.system()} / {platform.machine()}")
     if platform.system() not in {"Windows", "Linux", "Darwin"}: raise RuntimeError("Unsupported operating system")
-    install_rtk(); install_python_tools(); install_9router_skill()
+    install_rtk(); install_python_tools(); install_headroom(); install_9router_skill()
     print("[ok] All requested install steps completed; restart agent sessions if needed")
 
 
