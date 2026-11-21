@@ -18,8 +18,11 @@ if (-not (Test-Path $credFile)) { New-Item -ItemType File -Path $credFile | Out-
 if (-not (Test-Path $kb)) { New-Item -ItemType File -Path $kb | Out-Null }
 function Backup-File([string]$Path) {
   if (Test-Path $Path -PathType Leaf) {
-    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $dest = "$Path.bak.$stamp"
+    # Ponytail: satu backup seumur file. Backup pertama = file asli sebelum injeksi,
+    # jadi backup berikutnya tidak berguna dan hanya memenuhi storage device kecil.
+    $prior = Get-ChildItem -LiteralPath (Split-Path -Parent $Path) -Filter "$([IO.Path]::GetFileName($Path)).bak.*" -File -ErrorAction SilentlyContinue
+    if ($prior) { Write-Output "[keep] $($prior[0].FullName)"; return }
+    $dest = "$Path.bak.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     Copy-Item -LiteralPath $Path -Destination $dest
     Write-Output "[backup] $dest"
   }
